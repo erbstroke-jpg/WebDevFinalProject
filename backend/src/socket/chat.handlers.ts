@@ -9,8 +9,6 @@ interface SendMessagePayload {
   topicId?: string | null;
   content?: string;
   replyToId?: string | null;
-
-  // Вложение (опционально)
   attachment?: {
     url: string;
     fileName: string;
@@ -27,7 +25,6 @@ export const registerChatHandlers = (io: Server, socket: AuthedSocket) => {
     try {
       const { chatId, topicId, content, replyToId, attachment } = payload;
 
-      // Должно быть либо текст, либо вложение
       if (!content?.trim() && !attachment) {
         return ack?.({ ok: false, error: 'Empty message' });
       }
@@ -47,7 +44,6 @@ export const registerChatHandlers = (io: Server, socket: AuthedSocket) => {
         return ack?.({ ok: false, error: 'topicId not allowed in this chat type' });
       }
 
-      // Тип сообщения определяется вложением, иначе TEXT
       const type: MessageType = attachment ? attachment.messageType : 'TEXT';
 
       const message = await prisma.message.create({
@@ -65,18 +61,14 @@ export const registerChatHandlers = (io: Server, socket: AuthedSocket) => {
         },
         include: {
           sender: {
-            select: {
-              id: true,
-              username: true,
-              displayName: true,
-              avatarUrl: true,
-            },
+            select: { id: true, username: true, displayName: true, avatarUrl: true },
           },
           replyTo: {
             include: {
               sender: { select: { id: true, username: true, displayName: true } },
             },
           },
+          reads: { select: { userId: true, readAt: true } },
         },
       });
 
@@ -110,19 +102,62 @@ export const registerChatHandlers = (io: Server, socket: AuthedSocket) => {
     });
   });
 
+  // Прочитать все сообщения до указанного (включительно)
   socket.on(
     'message:read',
     async ({ chatId, messageId }: { chatId: string; messageId: string }) => {
       try {
+        const member = await prisma.chatMember.findUnique({
+          where: { chatId_userId: { chatId, userId } },
+        });
+        if (!member) return;
+
+        const target = await prisma.message.findUnique({
+          where: { id: messageId },
+          select: { id: true, createdAt: true, chatId: true, topicId: true },
+        });
+        if (!target || target.chatId !== chatId) return;
+
+        // Все непрочитанные сообщения текущего юзера до target включительно
+        // (не считаем свои, не считаем уже прочитанные)
+        const unread = await prisma.message.findMany({
+          where: {
+            chatId,
+            ...(target.topicId ? { topicId: target.topicId } : { topicId: null }),
+            createdAt: { lte: target.createdAt },
+            senderId: { not: userId },
+            type: { not: 'SYSTEM' },
+            reads: { none: { userId } },
+          },
+          select: { id: true },
+        });
+
+        if (unread.length === 0) {
+          // Просто обновим lastReadMessageId
+          await prisma.chatMember.update({
+            where: { chatId_userId: { chatId, userId } },
+            data: { lastReadMessageId: messageId },
+          });
+          return;
+        }
+
+        // Создаём записи MessageRead пакетом
+        await prisma.messageRead.createMany({
+          data: unread.map((m) => ({ messageId: m.id, userId })),
+          skipDuplicates: true,
+        });
+
         await prisma.chatMember.update({
           where: { chatId_userId: { chatId, userId } },
           data: { lastReadMessageId: messageId },
         });
 
-        socket.to(`chat:${chatId}`).emit('message:read', {
+        // Сообщаем в комнату чата, что эти сообщения прочитаны
+        io.to(`chat:${chatId}`).emit('message:read', {
           chatId,
-          messageId,
+          topicId: target.topicId || null,
           userId,
+          messageIds: unread.map((m) => m.id),
         });
       } catch (error) {
         logger.error('message:read error', error);

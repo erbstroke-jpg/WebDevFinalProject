@@ -1,13 +1,13 @@
 'use client';
 
 import { create } from 'zustand';
-import { Chat, Message, Topic } from '@/types';
+import { Chat, Message, MessageRead, Topic } from '@/types';
 
 interface ChatState {
   chats: Chat[];
   activeChatId: string | null;
   activeTopicId: string | null;
-  messagesByChat: Record<string, Message[]>;          // ключ "chatId" или "chatId:topicId"
+  messagesByChat: Record<string, Message[]>;
   topicsByChat: Record<string, Topic[]>;
   typingByChat: Record<string, Set<string>>;
   onlineUsers: Set<string>;
@@ -19,6 +19,7 @@ interface ChatState {
 
   setMessages: (key: string, messages: Message[]) => void;
   appendMessage: (message: Message) => void;
+  markMessagesRead: (chatId: string, topicId: string | null, messageIds: string[], userId: string) => void;
 
   setTopics: (chatId: string, topics: Topic[]) => void;
   addTopic: (chatId: string, topic: Topic) => void;
@@ -26,6 +27,8 @@ interface ChatState {
   setTyping: (chatId: string, userId: string, isTyping: boolean) => void;
 
   setOnline: (userId: string, isOnline: boolean) => void;
+
+  resetUnread: (chatId: string) => void;
 }
 
 export const messageKey = (chatId: string, topicId: string | null) =>
@@ -65,18 +68,45 @@ export const useChatStore = create<ChatState>((set) => ({
       const existing = state.messagesByChat[key] || [];
       if (existing.some((m) => m.id === message.id)) return {};
 
-      const updatedChats = state.chats.map((c) =>
-        c.id === message.chatId
-          ? { ...c, lastMessage: message, updatedAt: message.createdAt }
-          : c
-      );
+      // Увеличиваем unread если это не активный чат и сообщение не от меня
+      const isActiveView =
+        state.activeChatId === message.chatId &&
+        (!message.topicId || state.activeTopicId === message.topicId);
+
+      const updatedChats = state.chats.map((c) => {
+        if (c.id !== message.chatId) return c;
+        const incrementUnread = !isActiveView && message.type !== 'SYSTEM';
+        return {
+          ...c,
+          lastMessage: message,
+          updatedAt: message.createdAt,
+          unreadCount: incrementUnread ? (c.unreadCount || 0) + 1 : c.unreadCount,
+        };
+      });
+
       const sortedChats = [...updatedChats].sort(
         (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
       );
+
       return {
         messagesByChat: { ...state.messagesByChat, [key]: [...existing, message] },
         chats: sortedChats,
       };
+    }),
+
+  markMessagesRead: (chatId, topicId, messageIds, userId) =>
+    set((state) => {
+      const key = messageKey(chatId, topicId);
+      const list = state.messagesByChat[key];
+      if (!list) return {};
+      const ids = new Set(messageIds);
+      const newRead: MessageRead = { userId, readAt: new Date().toISOString() };
+      const updated = list.map((m) => {
+        if (!ids.has(m.id)) return m;
+        if ((m.reads || []).some((r) => r.userId === userId)) return m;
+        return { ...m, reads: [...(m.reads || []), newRead] };
+      });
+      return { messagesByChat: { ...state.messagesByChat, [key]: updated } };
     }),
 
   setTopics: (chatId, topics) =>
@@ -106,4 +136,11 @@ export const useChatStore = create<ChatState>((set) => ({
       else next.delete(userId);
       return { onlineUsers: next };
     }),
+
+  resetUnread: (chatId) =>
+    set((state) => ({
+      chats: state.chats.map((c) =>
+        c.id === chatId ? { ...c, unreadCount: 0 } : c
+      ),
+    })),
 }));

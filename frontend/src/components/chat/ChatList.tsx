@@ -57,6 +57,8 @@ export function ChatList({ onSelectChat }: Props) {
             lastMsgText = `${chat.lastMessage.sender.displayName}: ${lastMsgText}`;
           }
 
+          const unread = chat.unreadCount || 0;
+
           return (
             <button
               key={chat.id}
@@ -80,20 +82,29 @@ export function ChatList({ onSelectChat }: Props) {
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-baseline">
-                  <span className="font-medium truncate flex items-center">
+                <div className="flex justify-between items-baseline gap-2">
+                  <span className={cn('truncate flex items-center', unread > 0 ? 'font-semibold' : 'font-medium')}>
                     {icon}
                     {chat.displayName}
                   </span>
                   {chat.lastMessage && (
-                    <span className="text-xs text-muted-foreground shrink-0 ml-2">
+                    <span className="text-xs text-muted-foreground shrink-0">
                       {formatDistanceToNow(new Date(chat.lastMessage.createdAt), {
                         addSuffix: false,
                       })}
                     </span>
                   )}
                 </div>
-                <p className="text-sm text-muted-foreground truncate">{lastMsgText}</p>
+                <div className="flex justify-between items-center gap-2">
+                  <p className={cn('text-sm truncate', unread > 0 ? 'text-foreground' : 'text-muted-foreground')}>
+                    {lastMsgText}
+                  </p>
+                  {unread > 0 && (
+                    <span className="shrink-0 bg-primary text-primary-foreground text-xs font-semibold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center">
+                      {unread > 99 ? '99+' : unread}
+                    </span>
+                  )}
+                </div>
               </div>
             </button>
           );

@@ -2,16 +2,19 @@
 
 import { useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Message } from '@/types';
+import { Message, ChatMember } from '@/types';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { fileUrl } from '@/lib/api';
 import { FileText, Download } from 'lucide-react';
+import { ReadReceipt } from './ReadReceipt';
 
 interface Props {
   message: Message;
   isOwn: boolean;
   showAvatar: boolean;
+  members?: ChatMember[];
+  currentUserId?: string;
 }
 
 const formatBytes = (bytes: number | null) => {
@@ -23,8 +26,7 @@ const formatBytes = (bytes: number | null) => {
 
 const renderAttachment = (message: Message, isOwn: boolean) => {
   if (!message.fileUrl) return null;
-  const fileUrlResult = fileUrl(message.fileUrl);
-  const url = typeof fileUrlResult === 'object' ? fileUrlResult.url : fileUrlResult;
+  const url = fileUrl(message.fileUrl);
 
   if (message.type === 'IMAGE') {
     return (
@@ -70,7 +72,13 @@ const renderAttachment = (message: Message, isOwn: boolean) => {
   );
 };
 
-export function MessageBubble({ message, isOwn, showAvatar }: Props) {
+export function MessageBubble({
+  message,
+  isOwn,
+  showAvatar,
+  members = [],
+  currentUserId,
+}: Props) {
   const router = useRouter();
 
   if (message.type === 'SYSTEM') {
@@ -147,11 +155,18 @@ export function MessageBubble({ message, isOwn, showAvatar }: Props) {
 
         <div
           className={cn(
-            'text-[10px] text-muted-foreground mt-0.5 px-3',
-            isOwn ? 'text-right' : 'text-left'
+            'flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5 px-3',
+            isOwn ? 'flex-row-reverse' : 'flex-row'
           )}
         >
-          {format(new Date(message.createdAt), 'HH:mm')}
+          <span>{format(new Date(message.createdAt), 'HH:mm')}</span>
+          {currentUserId && (
+            <ReadReceipt
+              message={message}
+              members={members}
+              currentUserId={currentUserId}
+            />
+          )}
         </div>
       </div>
     </div>

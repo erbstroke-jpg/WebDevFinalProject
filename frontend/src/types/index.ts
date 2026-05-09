@@ -25,6 +25,11 @@ export interface ChatMember {
   user: User;
 }
 
+export interface MessageRead {
+  userId: string;
+  readAt: string;
+}
+
 export interface Message {
   id: string;
   chatId: string;
@@ -43,6 +48,7 @@ export interface Message {
   updatedAt: string;
   sender: User;
   replyTo?: Message | null;
+  reads?: MessageRead[];
 }
 
 export interface Chat {
@@ -56,10 +62,12 @@ export interface Chat {
   createdAt: string;
   updatedAt: string;
   members: ChatMember[];
-  topics?: Topic[];                    // ← добавлено
+  topics?: Topic[];
   displayName: string;
   displayAvatarUrl: string | null;
   lastMessage: Message | null;
+  unreadCount?: number;
+  myLastReadMessageId?: string | null;
 }
 
 export interface ApiError {

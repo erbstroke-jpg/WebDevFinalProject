@@ -102,7 +102,37 @@ export const chatsService = {
       orderBy: { updatedAt: 'desc' },
     });
 
-    return chats.map((c) => this.formatChat(c, userId));
+    // Считаем непрочитанные пакетом для каждого чата
+    const result = await Promise.all(
+      chats.map(async (chat) => {
+        const myMember = chat.members.find((m) => m.userId === userId);
+        const unreadCount = await prisma.message.count({
+          where: {
+            chatId: chat.id,
+            senderId: { not: userId },
+            type: { not: 'SYSTEM' },
+            reads: { none: { userId } },
+            // Если есть lastReadMessageId — считаем только новее
+            ...(myMember?.lastReadMessageId
+              ? {
+                  createdAt: {
+                    gt: (
+                      await prisma.message.findUnique({
+                        where: { id: myMember.lastReadMessageId },
+                        select: { createdAt: true },
+                      })
+                    )?.createdAt || new Date(0),
+                  },
+                }
+              : {}),
+          },
+        });
+
+        return this.formatChat({ ...chat, _count: { unreadMessages: unreadCount } }, userId);
+      })
+    );
+
+    return result;
   },
 
   /** Получить чат по ID (с проверкой членства) */
@@ -328,6 +358,9 @@ export const chatsService = {
           sender: { select: { id: true, username: true, displayName: true } },
         },
       },
+      reads: {
+        select: { userId: true, readAt: true },
+      },
     };
   },
 
@@ -361,6 +394,9 @@ export const chatsService = {
   },
 
   formatChat(chat: any, currentUserId: string) {
+    const myMember = chat.members.find((m: any) => m.userId === currentUserId);
+    const unreadCount = chat._count?.unreadMessages ?? 0;
+
     if (chat.type === 'DIRECT') {
       const other = chat.members.find((m: any) => m.userId !== currentUserId);
       return {
@@ -368,7 +404,10 @@ export const chatsService = {
         displayName: other?.user.displayName || 'Unknown',
         displayAvatarUrl: other?.user.avatarUrl || null,
         lastMessage: chat.messages[0] || null,
+        unreadCount,
+        myLastReadMessageId: myMember?.lastReadMessageId || null,
         messages: undefined,
+        _count: undefined,
       };
     }
 
@@ -377,7 +416,10 @@ export const chatsService = {
       displayName: chat.name,
       displayAvatarUrl: chat.avatarUrl,
       lastMessage: chat.messages[0] || null,
+      unreadCount,
+      myLastReadMessageId: myMember?.lastReadMessageId || null,
       messages: undefined,
+      _count: undefined,
     };
   },
 };

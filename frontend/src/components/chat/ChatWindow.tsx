@@ -12,6 +12,7 @@ import { MessageInput } from './MessageInput';
 import { TopicSidebar } from './TopicSidebar';
 import { ChatMenu } from './ChatMenu';
 import { Hash, Users } from 'lucide-react';
+import { getSocket } from '@/lib/socket';
 
 interface Props {
   chatId: string;
@@ -27,6 +28,7 @@ export function ChatWindow({ chatId }: Props) {
     activeTopicId,
     topicsByChat,
     setMessages,
+    resetUnread,
   } = useChatStore();
 
   const chat = chats.find((c) => c.id === chatId);
@@ -36,12 +38,12 @@ export function ChatWindow({ chatId }: Props) {
   const messages = messagesByChat[key] || [];
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // Имя текущего топика — для placeholder
   const currentTopic =
     isSupergroup && activeTopicId
       ? (topicsByChat[chatId] || []).find((t) => t.id === activeTopicId)
       : null;
 
+  // Загрузка истории
   useEffect(() => {
     if (!chatId) return;
     if (isSupergroup && !activeTopicId) return;
@@ -56,9 +58,26 @@ export function ChatWindow({ chatId }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatId, effectiveTopicId]);
 
+  // Автоскролл вниз
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
+
+  // Маркируем последнее видимое сообщение как прочитанное при открытии чата / новых сообщениях
+  useEffect(() => {
+    if (!currentUserId || messages.length === 0) return;
+    const lastIncoming = [...messages]
+      .reverse()
+      .find((m) => m.senderId !== currentUserId && m.type !== 'SYSTEM');
+    if (!lastIncoming) return;
+
+    // Уже прочитано?
+    const alreadyRead = (lastIncoming.reads || []).some((r) => r.userId === currentUserId);
+    if (alreadyRead) return;
+
+    getSocket()?.emit('message:read', { chatId, messageId: lastIncoming.id });
+    resetUnread(chatId);
+  }, [chatId, messages, currentUserId, resetUnread]);
 
   if (!chat) {
     return (
@@ -84,7 +103,6 @@ export function ChatWindow({ chatId }: Props) {
   if (chat.type === 'SUPERGROUP') chatIcon = <Hash className="w-4 h-4" />;
   else if (chat.type === 'GROUP') chatIcon = <Users className="w-4 h-4" />;
 
-  // Правильный placeholder
   let placeholder = `Message ${chat.displayName}`;
   if (isSupergroup && currentTopic) {
     placeholder = `Message in ${currentTopic.iconEmoji || '#'} ${currentTopic.name}`;
@@ -97,7 +115,9 @@ export function ChatWindow({ chatId }: Props) {
       <div className="flex-1 flex flex-col">
         <div className="border-b px-4 py-3 flex items-center gap-3 bg-card">
           <Avatar>
-            <AvatarImage src={chat.displayAvatarUrl ? fileUrl(chat.displayAvatarUrl) : undefined} />
+            <AvatarImage
+              src={chat.displayAvatarUrl ? fileUrl(chat.displayAvatarUrl) : undefined}
+            />
             <AvatarFallback>{chat.displayName.slice(0, 2).toUpperCase()}</AvatarFallback>
           </Avatar>
           <div className="flex-1">
@@ -136,6 +156,8 @@ export function ChatWindow({ chatId }: Props) {
                         message={msg}
                         isOwn={msg.senderId === currentUserId}
                         showAvatar={showAvatar}
+                        members={chat.members}
+                        currentUserId={currentUserId}
                       />
                     );
                   })
