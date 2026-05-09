@@ -6,12 +6,15 @@ import path from 'path';
 import { env } from './config/env';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware';
 
+import authRoutes from './modules/auth/auth.routes';
+import usersRoutes from './modules/users/users.routes';
+
 export const createApp = (): Application => {
   const app = express();
 
   app.use(
     helmet({
-      crossOriginResourcePolicy: { policy: 'cross-origin' }, // чтобы фронт мог тянуть аватары
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
     })
   );
   app.use(
@@ -24,21 +27,16 @@ export const createApp = (): Application => {
   app.use(express.urlencoded({ extended: true }));
   app.use(morgan(env.nodeEnv === 'development' ? 'dev' : 'combined'));
 
-  // Раздача загруженных файлов
   app.use('/uploads', express.static(path.resolve(env.uploadDir)));
 
-  // Healthcheck
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
-  // API routes — будем подключать по мере готовности модулей
-  // app.use('/api/auth', authRoutes);
-  // app.use('/api/users', usersRoutes);
-  // app.use('/api/chats', chatsRoutes);
-  // ...
+  // API routes
+  app.use('/api/auth', authRoutes);
+  app.use('/api/users', usersRoutes);
 
-  // 404 + ошибки — всегда последними
   app.use(notFoundHandler);
   app.use(errorHandler);
 
