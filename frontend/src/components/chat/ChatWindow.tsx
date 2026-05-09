@@ -13,6 +13,7 @@ import { TopicSidebar } from './TopicSidebar';
 import { ChatMenu } from './ChatMenu';
 import { Hash, Users } from 'lucide-react';
 import { getSocket } from '@/lib/socket';
+import { CallButtons } from './CallButtons';
 
 interface Props {
   chatId: string;
@@ -127,6 +128,12 @@ export function ChatWindow({ chatId }: Props) {
             </div>
             <div className="text-xs text-muted-foreground">{subtitle}</div>
           </div>
+          {chat.type === 'DIRECT' && otherMember && (
+            <CallButtons
+              peerId={otherMember.userId}
+              peerUsername={otherMember.user.username}
+            />
+          )}
           <ChatMenu chat={chat} />
         </div>
 

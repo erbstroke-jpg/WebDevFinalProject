@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { LogOut, User as UserIcon, MessageSquare } from 'lucide-react';
 import { fileUrl } from '@/lib/api';
+import { CallProvider } from '@/components/call/CallProvider';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -74,6 +75,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         </DropdownMenu>
       </header>
       <main className="flex-1">{children}</main>
+
+      {/* Глобальные модалки звонка */}
+      <CallProvider />
     </div>
   );
 }

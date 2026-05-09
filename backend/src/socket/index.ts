@@ -4,6 +4,7 @@ import { env } from '../config/env';
 import { logger } from '../utils/logger';
 import { socketAuthMiddleware, AuthedSocket } from './auth.socket';
 import { registerChatHandlers } from './chat.handlers';
+import { registerCallHandlers } from './call.handlers';
 import { presence } from './presence';
 import { prisma } from '../config/prisma';
 
@@ -24,28 +25,24 @@ export const initSocket = (httpServer: HttpServer): Server => {
     const { userId, username } = authed.data;
     logger.info(`Socket connected: ${username} (${socket.id})`);
 
-    // Регистрируем presence
     presence.add(userId, socket.id);
     await prisma.user.update({
       where: { id: userId },
       data: { status: 'online' },
     });
 
-    // Личная комната — для адресных уведомлений
     socket.join(`user:${userId}`);
 
-    // Авто-подписка на все чаты пользователя
     const memberships = await prisma.chatMember.findMany({
       where: { userId },
       select: { chatId: true },
     });
     memberships.forEach((m) => socket.join(`chat:${m.chatId}`));
 
-    // Сообщаем всем «онлайн»
     io.emit('user:online', { userId });
 
-    // Регистрируем обработчики событий
     registerChatHandlers(io, authed);
+    registerCallHandlers(io, authed);
 
     socket.on('disconnect', async () => {
       const wentOffline = await presence.remove(userId, socket.id);
