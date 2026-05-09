@@ -3,24 +3,24 @@ import { createApp } from './app';
 import { env } from './config/env';
 import { logger } from './utils/logger';
 import { prisma } from './config/prisma';
+import { initSocket } from './socket';
 
 const start = async () => {
   try {
-    // Проверяем подключение к БД
     await prisma.$connect();
     logger.info('Database connected');
 
     const app = createApp();
     const httpServer = http.createServer(app);
 
-    // Сюда позже добавим Socket.io: initSocket(httpServer);
+    initSocket(httpServer);
+    logger.info('Socket.io initialized');
 
     httpServer.listen(env.port, () => {
       logger.info(`Server running on http://localhost:${env.port}`);
       logger.info(`Environment: ${env.nodeEnv}`);
     });
 
-    // Graceful shutdown
     const shutdown = async (signal: string) => {
       logger.info(`Received ${signal}, shutting down...`);
       httpServer.close(() => logger.info('HTTP server closed'));

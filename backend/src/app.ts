@@ -8,6 +8,7 @@ import { errorHandler, notFoundHandler } from './middleware/error.middleware';
 
 import authRoutes from './modules/auth/auth.routes';
 import usersRoutes from './modules/users/users.routes';
+import chatsRoutes from './modules/chats/chats.routes';
 
 export const createApp = (): Application => {
   const app = express();
@@ -33,9 +34,9 @@ export const createApp = (): Application => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
-  // API routes
   app.use('/api/auth', authRoutes);
   app.use('/api/users', usersRoutes);
+  app.use('/api/chats', chatsRoutes);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
