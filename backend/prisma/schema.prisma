@@ -1,0 +1,215 @@
+// backend/prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USERS
+// ============================================
+
+model User {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  username    String   @unique
+  password    String   // bcrypt hash
+  
+  // Profile
+  displayName String
+  avatarUrl   String?
+  bio         String?  @db.Text
+  status      String?  // "online", "offline", "away" — обновляется через socket
+  lastSeenAt  DateTime @default(now())
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  sentMessages    Message[]       @relation("MessageSender")
+  chatMembers     ChatMember[]
+  ownedChats      Chat[]          @relation("ChatOwner")
+  notifications   Notification[]
+  readReceipts    MessageRead[]
+  
+  @@index([username])
+  @@index([email])
+}
+
+// ============================================
+// CHATS (личные, группы, супергруппы)
+// ============================================
+
+enum ChatType {
+  DIRECT       // 1-на-1
+  GROUP        // обычная группа без топиков
+  SUPERGROUP   // группа с топиками (как Telegram)
+}
+
+model Chat {
+  id           String    @id @default(uuid())
+  type         ChatType
+  
+  // Для групп/супергрупп
+  name         String?
+  description  String?   @db.Text
+  avatarUrl    String?
+  
+  // Только для SUPERGROUP — есть топики
+  // Для DIRECT/GROUP топиков нет, сообщения идут напрямую
+  isSupergroup Boolean   @default(false)
+  
+  ownerId      String?
+  owner        User?     @relation("ChatOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  
+  members      ChatMember[]
+  messages     Message[]
+  topics       Topic[]
+  
+  @@index([type])
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+model ChatMember {
+  id         String     @id @default(uuid())
+  chatId     String
+  userId     String
+  role       MemberRole @default(MEMBER)
+  joinedAt   DateTime   @default(now())
+  
+  // Для отображения непрочитанных
+  lastReadMessageId String?
+  
+  chat       Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user       User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([chatId, userId])
+  @@index([userId])
+  @@index([chatId])
+}
+
+// ============================================
+// TOPICS (только для супергрупп)
+// ============================================
+
+model Topic {
+  id          String   @id @default(uuid())
+  chatId      String
+  name        String
+  iconEmoji   String?  // визуальная фишка топиков
+  createdById String
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  chat        Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  messages    Message[]
+  
+  @@index([chatId])
+}
+
+// ============================================
+// MESSAGES
+// ============================================
+
+enum MessageType {
+  TEXT
+  IMAGE
+  VIDEO
+  AUDIO
+  FILE
+  SYSTEM    // "X joined the chat", "Y created a topic"
+}
+
+model Message {
+  id         String      @id @default(uuid())
+  chatId     String
+  topicId    String?     // обязателен только для супергрупп
+  senderId   String
+  
+  type       MessageType @default(TEXT)
+  content    String?     @db.Text  // текст или caption для медиа
+  
+  // Вложение (если type != TEXT)
+  fileUrl       String?
+  fileName      String?
+  fileSize      Int?
+  fileMimeType  String?
+  
+  // Reply / forwarding
+  replyToId  String?
+  replyTo    Message?    @relation("MessageReply", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies    Message[]   @relation("MessageReply")
+  
+  // Edit / delete
+  isEdited   Boolean     @default(false)
+  isDeleted  Boolean     @default(false)
+  
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  
+  chat       Chat        @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  topic      Topic?      @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  sender     User        @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  reads      MessageRead[]
+  
+  @@index([chatId, createdAt])
+  @@index([topicId, createdAt])
+  @@index([senderId])
+}
+
+model MessageRead {
+  id         String   @id @default(uuid())
+  messageId  String
+  userId     String
+  readAt     DateTime @default(now())
+  
+  message    Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([messageId, userId])
+  @@index([userId])
+}
+
+// ============================================
+// NOTIFICATIONS
+// ============================================
+
+enum NotificationType {
+  NEW_MESSAGE
+  MENTION
+  CHAT_INVITE
+  TOPIC_CREATED
+}
+
+model Notification {
+  id         String           @id @default(uuid())
+  userId     String
+  type       NotificationType
+  title      String
+  body       String           @db.Text
+  
+  // Контекст для перехода
+  chatId     String?
+  topicId    String?
+  messageId  String?
+  
+  isRead     Boolean          @default(false)
+  createdAt  DateTime         @default(now())
+  
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, isRead, createdAt])
+}
