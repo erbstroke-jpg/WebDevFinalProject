@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/authStore';
 import { useAuth } from '@/hooks/useAuth';
-import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -54,11 +53,26 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-2 hover:bg-muted rounded-full pl-2 pr-1 py-1 transition-colors">
-                ...
+                <span className="text-sm hidden sm:inline">{user.displayName}</span>
+                <Avatar className="w-8 h-8">
+                  <AvatarImage src={user.avatarUrl ? fileUrl(user.avatarUrl) : undefined} />
+                  <AvatarFallback className="text-xs">
+                    {user.displayName.slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              ...
+              <DropdownMenuItem onSelect={() => router.push('/profile')}>
+                <UserIcon className="w-4 h-4 mr-2" /> My profile
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => router.push('/chats')}>
+                <MessageSquare className="w-4 h-4 mr-2" /> Chats
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={logout} className="text-destructive">
+                <LogOut className="w-4 h-4 mr-2" /> Logout
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
