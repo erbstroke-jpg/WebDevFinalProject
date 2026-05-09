@@ -2,6 +2,9 @@
 
 A full-stack messenger with real-time messaging, group chats with topics, file attachments, voice messages, and WebRTC video calls. Built as a final university project.
 
+🔗 **Live demo:** [https://web-dev-final-project-steel.vercel.app](https://web-dev-final-project-steel.vercel.app)
+
+
 ![Stack](https://img.shields.io/badge/Next.js-14-black?logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript)
 ![Socket.io](https://img.shields.io/badge/Socket.io-4-010101?logo=socket.io)
