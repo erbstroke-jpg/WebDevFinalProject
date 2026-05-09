@@ -2,41 +2,66 @@ import { Server } from 'socket.io';
 import { AuthedSocket } from './auth.socket';
 import { prisma } from '../config/prisma';
 import { logger } from '../utils/logger';
+import { MessageType } from '@prisma/client';
 
 interface SendMessagePayload {
   chatId: string;
   topicId?: string | null;
-  content: string;
+  content?: string;
   replyToId?: string | null;
+
+  // Вложение (опционально)
+  attachment?: {
+    url: string;
+    fileName: string;
+    fileSize: number;
+    fileMimeType: string;
+    messageType: 'IMAGE' | 'VIDEO' | 'AUDIO' | 'FILE';
+  };
 }
 
 export const registerChatHandlers = (io: Server, socket: AuthedSocket) => {
   const { userId } = socket.data;
 
-  // Отправка сообщения
   socket.on('message:send', async (payload: SendMessagePayload, ack?: (res: unknown) => void) => {
     try {
-      const { chatId, content, replyToId } = payload;
+      const { chatId, topicId, content, replyToId, attachment } = payload;
 
-      if (!content?.trim()) {
+      // Должно быть либо текст, либо вложение
+      if (!content?.trim() && !attachment) {
         return ack?.({ ok: false, error: 'Empty message' });
       }
 
-      // Проверка членства в чате
       const member = await prisma.chatMember.findUnique({
         where: { chatId_userId: { chatId, userId } },
       });
-      if (!member) {
-        return ack?.({ ok: false, error: 'Not a member of this chat' });
+      if (!member) return ack?.({ ok: false, error: 'Not a member of this chat' });
+
+      const chat = await prisma.chat.findUnique({ where: { id: chatId } });
+      if (!chat) return ack?.({ ok: false, error: 'Chat not found' });
+
+      if (chat.isSupergroup && !topicId) {
+        return ack?.({ ok: false, error: 'topicId is required in supergroups' });
       }
+      if (!chat.isSupergroup && topicId) {
+        return ack?.({ ok: false, error: 'topicId not allowed in this chat type' });
+      }
+
+      // Тип сообщения определяется вложением, иначе TEXT
+      const type: MessageType = attachment ? attachment.messageType : 'TEXT';
 
       const message = await prisma.message.create({
         data: {
           chatId,
+          topicId: topicId || null,
           senderId: userId,
-          content: content.trim(),
-          type: 'TEXT',
+          content: content?.trim() || null,
+          type,
           replyToId: replyToId || null,
+          fileUrl: attachment?.url || null,
+          fileName: attachment?.fileName || null,
+          fileSize: attachment?.fileSize || null,
+          fileMimeType: attachment?.fileMimeType || null,
         },
         include: {
           sender: {
@@ -55,13 +80,11 @@ export const registerChatHandlers = (io: Server, socket: AuthedSocket) => {
         },
       });
 
-      // Обновим updatedAt чата (для сортировки списка чатов)
       await prisma.chat.update({
         where: { id: chatId },
         data: { updatedAt: new Date() },
       });
 
-      // Рассылаем всем в комнате чата
       io.to(`chat:${chatId}`).emit('message:new', message);
       ack?.({ ok: true, message });
     } catch (error) {
@@ -70,20 +93,23 @@ export const registerChatHandlers = (io: Server, socket: AuthedSocket) => {
     }
   });
 
-  // Индикатор «печатает»
-  socket.on('typing:start', ({ chatId }: { chatId: string }) => {
+  socket.on('typing:start', ({ chatId, topicId }: { chatId: string; topicId?: string }) => {
     socket.to(`chat:${chatId}`).emit('typing:start', {
       chatId,
+      topicId: topicId || null,
       userId,
       username: socket.data.username,
     });
   });
 
-  socket.on('typing:stop', ({ chatId }: { chatId: string }) => {
-    socket.to(`chat:${chatId}`).emit('typing:stop', { chatId, userId });
+  socket.on('typing:stop', ({ chatId, topicId }: { chatId: string; topicId?: string }) => {
+    socket.to(`chat:${chatId}`).emit('typing:stop', {
+      chatId,
+      topicId: topicId || null,
+      userId,
+    });
   });
 
-  // Прочитано до сообщения
   socket.on(
     'message:read',
     async ({ chatId, messageId }: { chatId: string; messageId: string }) => {
@@ -103,4 +129,15 @@ export const registerChatHandlers = (io: Server, socket: AuthedSocket) => {
       }
     }
   );
+
+  socket.on('chat:join', async ({ chatId }: { chatId: string }) => {
+    try {
+      const member = await prisma.chatMember.findUnique({
+        where: { chatId_userId: { chatId, userId } },
+      });
+      if (member) socket.join(`chat:${chatId}`);
+    } catch (error) {
+      logger.error('chat:join error', error);
+    }
+  });
 };

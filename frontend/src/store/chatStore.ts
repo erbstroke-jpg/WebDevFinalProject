@@ -1,33 +1,42 @@
 'use client';
 
 import { create } from 'zustand';
-import { Chat, Message } from '@/types';
+import { Chat, Message, Topic } from '@/types';
 
 interface ChatState {
   chats: Chat[];
   activeChatId: string | null;
-  messagesByChat: Record<string, Message[]>;
+  activeTopicId: string | null;
+  messagesByChat: Record<string, Message[]>;          // ключ "chatId" или "chatId:topicId"
+  topicsByChat: Record<string, Topic[]>;
   typingByChat: Record<string, Set<string>>;
   onlineUsers: Set<string>;
 
   setChats: (chats: Chat[]) => void;
   upsertChat: (chat: Chat) => void;
   setActiveChatId: (id: string | null) => void;
+  setActiveTopicId: (id: string | null) => void;
 
-  setMessages: (chatId: string, messages: Message[]) => void;
-  prependMessages: (chatId: string, messages: Message[]) => void;
+  setMessages: (key: string, messages: Message[]) => void;
   appendMessage: (message: Message) => void;
+
+  setTopics: (chatId: string, topics: Topic[]) => void;
+  addTopic: (chatId: string, topic: Topic) => void;
 
   setTyping: (chatId: string, userId: string, isTyping: boolean) => void;
 
   setOnline: (userId: string, isOnline: boolean) => void;
-  setOnlineUsers: (userIds: string[]) => void;
 }
+
+export const messageKey = (chatId: string, topicId: string | null) =>
+  topicId ? `${chatId}:${topicId}` : chatId;
 
 export const useChatStore = create<ChatState>((set) => ({
   chats: [],
   activeChatId: null,
+  activeTopicId: null,
   messagesByChat: {},
+  topicsByChat: {},
   typingByChat: {},
   onlineUsers: new Set(),
 
@@ -42,38 +51,43 @@ export const useChatStore = create<ChatState>((set) => ({
       return { chats: next };
     }),
 
-  setActiveChatId: (id) => set({ activeChatId: id }),
+  setActiveChatId: (id) => set({ activeChatId: id, activeTopicId: null }),
+  setActiveTopicId: (id) => set({ activeTopicId: id }),
 
-  setMessages: (chatId, messages) =>
+  setMessages: (key, messages) =>
     set((state) => ({
-      messagesByChat: { ...state.messagesByChat, [chatId]: messages },
+      messagesByChat: { ...state.messagesByChat, [key]: messages },
     })),
-
-  prependMessages: (chatId, messages) =>
-    set((state) => {
-      const existing = state.messagesByChat[chatId] || [];
-      return {
-        messagesByChat: { ...state.messagesByChat, [chatId]: [...messages, ...existing] },
-      };
-    }),
 
   appendMessage: (message) =>
     set((state) => {
-      const existing = state.messagesByChat[message.chatId] || [];
-      // защита от дублей
+      const key = messageKey(message.chatId, message.topicId);
+      const existing = state.messagesByChat[key] || [];
       if (existing.some((m) => m.id === message.id)) return {};
+
       const updatedChats = state.chats.map((c) =>
         c.id === message.chatId
           ? { ...c, lastMessage: message, updatedAt: message.createdAt }
           : c
       );
-      // переместим этот чат наверх
       const sortedChats = [...updatedChats].sort(
         (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
       );
       return {
-        messagesByChat: { ...state.messagesByChat, [message.chatId]: [...existing, message] },
+        messagesByChat: { ...state.messagesByChat, [key]: [...existing, message] },
         chats: sortedChats,
+      };
+    }),
+
+  setTopics: (chatId, topics) =>
+    set((state) => ({ topicsByChat: { ...state.topicsByChat, [chatId]: topics } })),
+
+  addTopic: (chatId, topic) =>
+    set((state) => {
+      const existing = state.topicsByChat[chatId] || [];
+      if (existing.some((t) => t.id === topic.id)) return {};
+      return {
+        topicsByChat: { ...state.topicsByChat, [chatId]: [...existing, topic] },
       };
     }),
 
@@ -92,6 +106,4 @@ export const useChatStore = create<ChatState>((set) => ({
       else next.delete(userId);
       return { onlineUsers: next };
     }),
-
-  setOnlineUsers: (userIds) => set({ onlineUsers: new Set(userIds) }),
 }));

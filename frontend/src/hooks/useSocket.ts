@@ -3,12 +3,12 @@
 import { useEffect } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { useChatStore } from '@/store/chatStore';
-import { connectSocket, disconnectSocket } from '@/lib/socket';
-import { Message } from '@/types';
+import { connectSocket, disconnectSocket, getSocket } from '@/lib/socket';
+import { Chat, Message } from '@/types';
 
 export const useSocket = () => {
   const token = useAuthStore((s) => s.token);
-  const { appendMessage, setTyping, setOnline } = useChatStore();
+  const { appendMessage, setTyping, setOnline, upsertChat } = useChatStore();
 
   useEffect(() => {
     if (!token) return;
@@ -27,9 +27,17 @@ export const useSocket = () => {
       appendMessage(message);
     });
 
+    socket.on('chat:created', (chat: Chat) => {
+      upsertChat(chat);
+      getSocket()?.emit('chat:join', { chatId: chat.id });
+    });
+
+    socket.on('chat:updated', (chat: Chat) => {
+      upsertChat(chat);
+    });
+
     socket.on('typing:start', ({ chatId, userId }: { chatId: string; userId: string }) => {
       setTyping(chatId, userId, true);
-      // Авто-сброс через 3 сек, если не пришло stop
       setTimeout(() => setTyping(chatId, userId, false), 3000);
     });
 

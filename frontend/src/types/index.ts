@@ -56,6 +56,7 @@ export interface Chat {
   createdAt: string;
   updatedAt: string;
   members: ChatMember[];
+  topics?: Topic[];                    // ← добавлено
   displayName: string;
   displayAvatarUrl: string | null;
   lastMessage: Message | null;
@@ -64,4 +65,13 @@ export interface Chat {
 export interface ApiError {
   error: string;
   details?: Array<{ path: string; message: string }>;
+}
+export interface Topic {
+  id: string;
+  chatId: string;
+  name: string;
+  iconEmoji: string | null;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
 }

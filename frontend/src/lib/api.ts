@@ -37,3 +37,38 @@ export const extractErrorMessage = (error: unknown): string => {
   if (error instanceof Error) return error.message;
   return 'Unknown error';
 };
+
+export interface UploadResult {
+  url: string;
+  fileName: string;
+  fileSize: number;
+  fileMimeType: string;
+  messageType: 'IMAGE' | 'VIDEO' | 'AUDIO' | 'FILE';
+}
+
+export const uploadFile = async (
+  file: File | Blob,
+  fileName?: string
+): Promise<UploadResult> => {
+  const formData = new FormData();
+  // Если это Blob (например запись голосового) — нужно дать имя
+  if (file instanceof File) {
+    formData.append('file', file);
+  } else {
+    formData.append('file', file, fileName || 'recording.webm');
+  }
+
+  const { data } = await api.post<UploadResult>('/api/uploads', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+
+  return data;
+};
+
+// Хелпер для построения полного URL к файлу
+export const fileUrl = (relativeUrl: string | null | undefined): string => {
+  if (!relativeUrl) return '';
+  if (relativeUrl.startsWith('http')) return relativeUrl;
+  const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  return `${base}${relativeUrl}`;
+};

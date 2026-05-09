@@ -5,8 +5,7 @@ import { AppError } from '../../middleware/error.middleware';
 export const usersController = {
   async getById(req: Request, res: Response, next: NextFunction) {
     try {
-      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-      const user = await usersService.findById(id);
+      const user = await usersService.findById(req.params.id as string);
       res.json(user);
     } catch (error) {
       next(error);
@@ -19,6 +18,16 @@ export const usersController = {
       const query = (req.query.q as string) || '';
       const users = await usersService.search(query, req.user.id);
       res.json(users);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async updateMe(req: Request, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) throw new AppError(401, 'Unauthorized');
+      const user = await usersService.updateProfile(req.user.id, req.body);
+      res.json(user);
     } catch (error) {
       next(error);
     }

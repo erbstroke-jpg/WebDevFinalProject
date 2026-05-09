@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { api } from '@/lib/api';
+import { api, fileUrl } from '@/lib/api';
 import { useChatStore } from '@/store/chatStore';
 import { useAuthStore } from '@/store/authStore';
 import { Chat } from '@/types';
@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
+import { Hash, Users } from 'lucide-react';
 
 interface Props {
   onSelectChat: (chatId: string) => void;
@@ -25,7 +26,7 @@ export function ChatList({ onSelectChat }: Props) {
   if (!chats.length) {
     return (
       <div className="p-4 text-sm text-muted-foreground">
-        No chats yet. Start one with the search above.
+        No chats yet. Use «+» above to start one.
       </div>
     );
   }
@@ -40,6 +41,22 @@ export function ChatList({ onSelectChat }: Props) {
               : null;
           const isOnline = otherMember ? onlineUsers.has(otherMember.userId) : false;
 
+          let icon = null;
+          if (chat.type === 'SUPERGROUP') icon = <Hash className="w-3 h-3 mr-1 inline" />;
+          else if (chat.type === 'GROUP') icon = <Users className="w-3 h-3 mr-1 inline" />;
+
+          let lastMsgText = chat.lastMessage?.content || 'No messages yet';
+          if (chat.lastMessage?.type === 'IMAGE') lastMsgText = '📷 Photo';
+          else if (chat.lastMessage?.type === 'VIDEO') lastMsgText = '🎬 Video';
+          else if (chat.lastMessage?.type === 'AUDIO') lastMsgText = '🎤 Voice message';
+          else if (chat.lastMessage?.type === 'FILE') lastMsgText = `📎 ${chat.lastMessage.fileName || 'File'}`;
+
+          if (chat.lastMessage && chat.lastMessage.type === 'SYSTEM') {
+            lastMsgText = `${chat.lastMessage.sender.displayName} ${chat.lastMessage.content}`;
+          } else if (chat.lastMessage && chat.type !== 'DIRECT' && chat.lastMessage.type !== 'SYSTEM') {
+            lastMsgText = `${chat.lastMessage.sender.displayName}: ${lastMsgText}`;
+          }
+
           return (
             <button
               key={chat.id}
@@ -51,7 +68,9 @@ export function ChatList({ onSelectChat }: Props) {
             >
               <div className="relative">
                 <Avatar>
-                  <AvatarImage src={chat.displayAvatarUrl || undefined} />
+                  <AvatarImage
+                    src={chat.displayAvatarUrl ? fileUrl(chat.displayAvatarUrl) : undefined}
+                  />
                   <AvatarFallback>
                     {chat.displayName.slice(0, 2).toUpperCase()}
                   </AvatarFallback>
@@ -62,7 +81,10 @@ export function ChatList({ onSelectChat }: Props) {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-baseline">
-                  <span className="font-medium truncate">{chat.displayName}</span>
+                  <span className="font-medium truncate flex items-center">
+                    {icon}
+                    {chat.displayName}
+                  </span>
                   {chat.lastMessage && (
                     <span className="text-xs text-muted-foreground shrink-0 ml-2">
                       {formatDistanceToNow(new Date(chat.lastMessage.createdAt), {
@@ -71,9 +93,7 @@ export function ChatList({ onSelectChat }: Props) {
                     </span>
                   )}
                 </div>
-                <p className="text-sm text-muted-foreground truncate">
-                  {chat.lastMessage?.content || 'No messages yet'}
-                </p>
+                <p className="text-sm text-muted-foreground truncate">{lastMsgText}</p>
               </div>
             </button>
           );

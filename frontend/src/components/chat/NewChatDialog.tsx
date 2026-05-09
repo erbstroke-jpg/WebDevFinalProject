@@ -6,19 +6,21 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Plus } from 'lucide-react';
 import { api, extractErrorMessage } from '@/lib/api';
 import { useChatStore } from '@/store/chatStore';
 import { User, Chat } from '@/types';
 import { toast } from 'sonner';
 
-export function NewChatDialog({ onChatCreated }: { onChatCreated: (id: string) => void }) {
-  const [open, setOpen] = useState(false);
+interface Props {
+  open: boolean;
+  setOpen: (v: boolean) => void;
+  onChatCreated: (id: string) => void;
+}
+
+export function NewChatDialog({ open, setOpen, onChatCreated }: Props) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<User[]>([]);
   const upsertChat = useChatStore((s) => s.upsertChat);
@@ -52,14 +54,9 @@ export function NewChatDialog({ onChatCreated }: { onChatCreated: (id: string) =
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="ghost" size="icon">
-          <Plus className="w-4 h-4" />
-        </Button>
-      </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Start a new chat</DialogTitle>
+          <DialogTitle>Start a direct chat</DialogTitle>
         </DialogHeader>
         <Input
           placeholder="Search by username or name..."
