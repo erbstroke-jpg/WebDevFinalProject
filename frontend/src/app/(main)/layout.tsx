@@ -18,7 +18,7 @@ import { LogOut, User as UserIcon, MessageSquare } from 'lucide-react';
 import { fileUrl } from '@/lib/api';
 import { CallProvider } from '@/components/call/CallProvider';
 import { ThemeToggle } from '@/components/shared/ThemeToggle';
-    
+
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { user, token, isHydrated } = useAuthStore();
@@ -49,31 +49,19 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           <MessageSquare className="w-5 h-5" />
           Messenger
         </Link>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-2 hover:bg-muted rounded-full pl-2 pr-1 py-1 transition-colors">
-              <span className="text-sm hidden sm:inline">{user.displayName}</span>
-              <Avatar className="w-8 h-8">
-                <AvatarImage src={user.avatarUrl ? fileUrl(user.avatarUrl) : undefined} />
-                <AvatarFallback className="text-xs">
-                  {user.displayName.slice(0, 2).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={() => router.push('/profile')}>
-              <UserIcon className="w-4 h-4 mr-2" /> My profile
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => router.push('/chats')}>
-              <MessageSquare className="w-4 h-4 mr-2" /> Chats
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={logout} className="text-destructive">
-              <LogOut className="w-4 h-4 mr-2" /> Logout
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center gap-1">
+          <ThemeToggle />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-2 hover:bg-muted rounded-full pl-2 pr-1 py-1 transition-colors">
+                ...
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              ...
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </header>
       <main className="flex-1">{children}</main>
 
