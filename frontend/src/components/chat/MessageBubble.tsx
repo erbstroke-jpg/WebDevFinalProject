@@ -83,7 +83,7 @@ export function MessageBubble({
 
   if (message.type === 'SYSTEM') {
     return (
-      <div className="text-center text-xs text-muted-foreground my-2">
+      <div className="text-center text-xs text-muted-foreground my-2 animate-fade-in-up">
         <span className="bg-muted/50 px-3 py-1 rounded-full">
           {message.sender.displayName} {message.content}
         </span>
@@ -102,7 +102,7 @@ export function MessageBubble({
   return (
     <div
       className={cn(
-        'flex gap-2 px-4',
+        'flex gap-2 px-4 animate-fade-in-up',
         isOwn ? 'flex-row-reverse' : 'flex-row',
         showAvatar ? 'mt-3' : 'mt-1'
       )}

@@ -14,7 +14,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, MessageSquare, Users, Hash } from 'lucide-react';
+import { Plus, MessageSquare, Users, Hash, MessagesSquare } from 'lucide-react';
 
 export default function ChatsPage() {
   useSocket();
@@ -69,8 +69,16 @@ export default function ChatsPage() {
       {activeChatId ? (
         <ChatWindow chatId={activeChatId} />
       ) : (
-        <div className="flex-1 flex items-center justify-center text-muted-foreground">
-          Select a chat or start a new one
+        <div className="flex-1 flex items-center justify-center bg-muted/20">
+          <div className="text-center max-w-md px-6">
+            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
+              <MessagesSquare className="w-10 h-10 text-primary" />
+            </div>
+            <h2 className="text-xl font-semibold mb-2">Welcome to Messenger</h2>
+            <p className="text-sm text-muted-foreground">
+              Select a chat from the sidebar or start a new conversation. You can create direct chats, groups, or supergroups with topics.
+            </p>
+          </div>
         </div>
       )}
     </div>

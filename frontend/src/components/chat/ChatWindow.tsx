@@ -146,8 +146,12 @@ export function ChatWindow({ chatId }: Props) {
             <ScrollArea className="flex-1">
               <div className="py-4">
                 {messages.length === 0 ? (
-                  <div className="text-center text-muted-foreground py-8 text-sm">
-                    No messages yet. Say hi 👋
+                  <div className="flex flex-col items-center justify-center py-16 text-center px-6">
+                    <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-3">
+                      <span className="text-3xl">👋</span>
+                    </div>
+                    <p className="text-sm font-medium">No messages yet</p>
+                    <p className="text-xs text-muted-foreground mt-1">Be the first to say hi!</p>
                   </div>
                 ) : (
                   messages.map((msg, idx) => {

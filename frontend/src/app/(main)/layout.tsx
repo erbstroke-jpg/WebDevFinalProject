@@ -17,7 +17,8 @@ import {
 import { LogOut, User as UserIcon, MessageSquare } from 'lucide-react';
 import { fileUrl } from '@/lib/api';
 import { CallProvider } from '@/components/call/CallProvider';
-
+import { ThemeToggle } from '@/components/shared/ThemeToggle';
+    
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { user, token, isHydrated } = useAuthStore();

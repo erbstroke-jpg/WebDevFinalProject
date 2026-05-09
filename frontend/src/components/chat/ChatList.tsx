@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { ChatListSkeleton } from './ChatListSkeleton';
 import { api, fileUrl } from '@/lib/api';
 import { useChatStore } from '@/store/chatStore';
 import { useAuthStore } from '@/store/authStore';
@@ -9,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
-import { Hash, Users } from 'lucide-react';
+import { Hash, Users, MessageSquare} from 'lucide-react';
 
 interface Props {
   onSelectChat: (chatId: string) => void;
@@ -19,14 +20,27 @@ export function ChatList({ onSelectChat }: Props) {
   const { chats, activeChatId, setChats, onlineUsers } = useChatStore();
   const currentUserId = useAuthStore((s) => s.user?.id);
 
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    api.get<Chat[]>('/api/chats').then(({ data }) => setChats(data));
+    api
+      .get<Chat[]>('/api/chats')
+      .then(({ data }) => setChats(data))
+      .finally(() => setLoading(false));
   }, [setChats]);
+
+  if (loading) {
+    return <ChatListSkeleton />;
+  }
 
   if (!chats.length) {
     return (
-      <div className="p-4 text-sm text-muted-foreground">
-        No chats yet. Use «+» above to start one.
+      <div className="flex flex-col items-center justify-center h-full p-6 text-center">
+        <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-3">
+          <MessageSquare className="w-6 h-6 text-muted-foreground" />
+        </div>
+        <p className="text-sm font-medium">No chats yet</p>
+        <p className="text-xs text-muted-foreground mt-1">Click «+» above to start a conversation</p>
       </div>
     );
   }

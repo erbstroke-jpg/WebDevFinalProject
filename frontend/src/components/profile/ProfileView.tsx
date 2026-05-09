@@ -87,7 +87,27 @@ export function ProfileView({ userId }: Props) {
   };
 
   if (loading) {
-    return <div className="p-6 text-muted-foreground">Loading...</div>;
+    return (
+      <div className="max-w-2xl mx-auto p-6">
+        <div className="bg-card border rounded-lg p-6">
+          <div className="flex items-start gap-6">
+            <div className="w-28 h-28 rounded-full bg-muted animate-pulse" />
+            <div className="flex-1 pt-2 space-y-3">
+              <div className="h-7 bg-muted animate-pulse rounded w-2/3" />
+              <div className="h-4 bg-muted animate-pulse rounded w-1/3" />
+              <div className="h-9 bg-muted animate-pulse rounded w-32 mt-3" />
+            </div>
+          </div>
+          <hr className="my-6" />
+          <div className="space-y-3">
+            <div className="h-4 bg-muted animate-pulse rounded w-1/4" />
+            <div className="h-10 bg-muted animate-pulse rounded" />
+            <div className="h-4 bg-muted animate-pulse rounded w-1/4" />
+            <div className="h-20 bg-muted animate-pulse rounded" />
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (!user) {
